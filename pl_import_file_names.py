@@ -113,8 +113,9 @@ class OpenFileByPathCommand(sublime_plugin.TextCommand):
 
     path = os.path.join(currentDir, relativePath)
     if os.path.isfile(path):
-      view.window().open_file(path)
+      return view.window().open_file(path)
     elif pluginSettings['isHideExtensions']:
       existedExtension = find(pluginSettings['extensions'], lambda ext: os.path.isfile(f'{path}{ext}'))
       if existedExtension:
-        view.window().open_file(f'{path}{existedExtension}')
+        return view.window().open_file(f'{path}{existedExtension}')
+    sublime.status_message(f'Can\'t open file {path}')

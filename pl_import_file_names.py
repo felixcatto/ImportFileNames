@@ -34,8 +34,14 @@ def shouldIncludePath(path, excludePathPatterns):
 def getParentPath(path, parentLvl):
   if parentLvl == 0:
     return path
-  parentPath = '/'.join(path.split('/')[0:-parentLvl])
-  return parentPath if parentPath else '/'
+  root = path.split(os.sep)[0] if os.name == 'nt' else '/'
+  parentPath = os.sep.join(path.split(os.sep)[0:-parentLvl])
+  return parentPath if parentPath else root
+
+def getRelativePath(rootDir, path):
+  tmpPath = path.replace(rootDir, '');
+  relativePath = tmpPath.replace(os.sep, '', 1) if tmpPath.startswith(os.sep) else tmpPath
+  return relativePath.replace('\\', '/')
 
 def plugin_loaded():
   global folderExcludePatterns, fileExcludePatterns, pluginSettings
@@ -66,7 +72,7 @@ class PathInputHandler(sublime_plugin.ListInputHandler):
       isDirectory = path.endswith('/')
       annotation = 'Directory' if isDirectory else ''
 
-      relativePathTitle = path.replace(f'{rootDir}/', '')
+      relativePathTitle = getRelativePath(rootDir, path)
       prefix = '../' * self.parentLvl
       if pluginSettings['useRelativePrefix']:
         prefix = './' if self.parentLvl == 0 else '../' * self.parentLvl

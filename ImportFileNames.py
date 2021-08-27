@@ -83,14 +83,16 @@ class PathInputHandler(sublime_plugin.ListInputHandler):
       return sublime.ListInputItem(relativePathTitle, relativePathValue, '', annotation)
 
     for root, dirs, files in os.walk(rootDir):
-      for fileName in files:
-        fullFileName = os.path.join(root, fileName)
-        if shouldIncludePath(root, folderExcludePatterns) and shouldIncludePath(fullFileName, fileExcludePatterns):
-          paths.append(fullFileName)
       for dirName in dirs:
         fullDirName = os.path.join(root, f'{dirName}/')
         if shouldIncludePath(fullDirName, folderExcludePatterns):
           paths.append(fullDirName)
+        else:
+          dirs.remove(dirName)
+      for fileName in files:
+        fullFileName = os.path.join(root, fileName)
+        if shouldIncludePath(root, folderExcludePatterns) and shouldIncludePath(fullFileName, fileExcludePatterns):
+          paths.append(fullFileName)
     return map(makeInputItem, paths)
 
   def next_input(self, args):

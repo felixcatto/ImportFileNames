@@ -45,14 +45,10 @@ def getRelativePath(rootDir, path):
 
 def plugin_loaded():
   global folderExcludePatterns, fileExcludePatterns, pluginSettings
+  pluginSettings = sublime.load_settings('ImportFileNames.sublime-settings').to_dict()
   settings = sublime.load_settings('Preferences.sublime-settings')
   folderExcludePatterns = settings.get('folder_exclude_patterns')
   fileExcludePatterns = settings.get('file_exclude_patterns')
-  pluginSettings = {
-    "isHideExtensions": True,
-    "extensions": ['.js', '.jsx', '.ts', '.tsx'],
-    "useRelativePrefix": True,
-  }
   tmpPattern = '|'.join(pluginSettings["extensions"]).replace('.', '\.')
   regexPattern = f'({tmpPattern})$'
   pluginSettings["extensionsRegex"] = re.compile(regexPattern)

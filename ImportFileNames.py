@@ -4,8 +4,6 @@ import os
 import re
 
 
-folderExcludePatterns = None
-fileExcludePatterns = None
 pluginSettings = None
 parentDirSymbol = '..'
 
@@ -44,11 +42,11 @@ def getRelativePath(rootDir, path):
   return relativePath.replace('\\', '/')
 
 def plugin_loaded():
-  global folderExcludePatterns, fileExcludePatterns, pluginSettings
+  global pluginSettings
   pluginSettings = sublime.load_settings('ImportFileNames.sublime-settings').to_dict()
   settings = sublime.load_settings('Preferences.sublime-settings')
-  folderExcludePatterns = settings.get('folder_exclude_patterns')
-  fileExcludePatterns = settings.get('file_exclude_patterns')
+  pluginSettings["folderExcludePatterns"] = pluginSettings["folderExcludePatterns"] + settings.get('folder_exclude_patterns')
+  pluginSettings["fileExcludePatterns"] = settings.get('file_exclude_patterns')
   tmpPattern = '|'.join(pluginSettings["extensions"]).replace('.', '\.')
   regexPattern = f'({tmpPattern})$'
   pluginSettings["extensionsRegex"] = re.compile(regexPattern)
@@ -59,6 +57,8 @@ class PathInputHandler(sublime_plugin.ListInputHandler):
     self.parentLvl = parentLvl
 
   def list_items(self):
+    folderExcludePatterns = pluginSettings["folderExcludePatterns"]
+    fileExcludePatterns = pluginSettings["fileExcludePatterns"]
     rootDir = getParentPath(self.currentDir, self.parentLvl)
     paths = [parentDirSymbol]
 

@@ -1,5 +1,15 @@
 {
+  // If enabled, the resulting path extension will be hidden.
+  // I.e. 'client/script' instead of 'client/script.js'
   "isHideExtensions": true,
+  // Extensions to hide
   "extensions": [".js", ".jsx", ".ts", ".tsx"],
-  "useRelativePrefix": true
+  // If enabled, the resulting path, if it from the same directory will have './' prefix
+  // I.e. './script.js' instead of 'script.js'
+  // useful in nodeJs, and useless in other purposes, because for OS they are same
+  "useRelativePrefix": true,
+  // Allows to exclude some folders from search. Mainly for speed considerations.
+  // Same format as in 'Preferences.sublime-settings' - 'folderExcludePatterns'
+  // I.e. '*' match everything, other symbols including '.' have no special meaning
+  "folderExcludePatterns": []
 }

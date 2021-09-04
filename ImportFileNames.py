@@ -7,40 +7,6 @@ import re
 pluginSettings = None
 parentDirSymbol = '..'
 
-def getPosition(view):
-  return view.sel()[0].begin()
-
-def find(array, filterFn):
-  return next((el for el in array if filterFn(el)), None)
-
-def some(array, filterFn):
-  for el in array:
-    if filterFn(el):
-      return True
-  return False
-
-def every(array, filterFn):
-  for el in array:
-    if not filterFn(el):
-      return False
-  return True
-
-def shouldIncludePath(path, excludePathPatterns):
-  shouldIncludePathFn = lambda pattern: not re.search(re.escape(pattern).replace('\\*', '.*'), path)
-  return every(excludePathPatterns, shouldIncludePathFn)
-
-def getParentPath(path, parentLvl):
-  if parentLvl == 0:
-    return path
-  root = path.split(os.sep)[0] if os.name == 'nt' else '/'
-  parentPath = os.sep.join(path.split(os.sep)[0:-parentLvl])
-  return parentPath if parentPath else root
-
-def getRelativePath(rootDir, path):
-  tmpPath = path.replace(rootDir, '');
-  relativePath = tmpPath.replace(os.sep, '', 1) if tmpPath.startswith(os.sep) else tmpPath
-  return relativePath.replace('\\', '/')
-
 def plugin_loaded():
   global pluginSettings
   pluginSettings = sublime.load_settings('ImportFileNames.sublime-settings').to_dict()
@@ -50,6 +16,36 @@ def plugin_loaded():
   tmpPattern = '|'.join(pluginSettings["extensions"]).replace('.', '\.')
   regexPattern = f'({tmpPattern})$'
   pluginSettings["extensionsRegex"] = re.compile(regexPattern)
+
+class ImportPathCommand(sublime_plugin.TextCommand):
+  def run(self, edit, path):
+    selection = self.view.sel()[0]
+    self.view.insert(edit, selection.begin(), path)
+
+  def input(self, args):
+    currentDir = os.path.dirname(self.view.file_name())
+    return PathInputHandler(currentDir)
+
+class OpenFileByPathCommand(sublime_plugin.TextCommand):
+  def run(self, edit):
+    view = self.view
+    selection = view.sel()[0]
+    selectionPoint = selection.begin()
+    currentDir = os.path.dirname(view.file_name())
+    if not view.match_selector(selectionPoint, 'string.quoted'): return
+
+    pathRegion = view.extract_scope(selectionPoint)
+    relativePath = re.sub('("|\')', '', view.substr(pathRegion))
+    if not relativePath: return
+
+    path = os.path.join(currentDir, relativePath)
+    if os.path.isfile(path):
+      return view.window().open_file(path)
+    elif pluginSettings['isHideExtensions']:
+      existedExtension = find(pluginSettings['extensions'], lambda ext: os.path.isfile(f'{path}{ext}'))
+      if existedExtension:
+        return view.window().open_file(f'{path}{existedExtension}')
+    sublime.status_message(f'Can\'t open file {path}')
 
 class PathInputHandler(sublime_plugin.ListInputHandler):
   def __init__(self, currentDir, parentLvl = 0):
@@ -96,30 +92,33 @@ class PathInputHandler(sublime_plugin.ListInputHandler):
       return PathInputHandler(self.currentDir, self.parentLvl + 1)
     return None
 
-class ImportPathCommand(sublime_plugin.TextCommand):
-  def run(self, edit, path):
-    self.view.insert(edit, getPosition(self.view), path)
-    
-  def input(self, args):
-    currentDir = os.path.dirname(self.view.file_name())
-    return PathInputHandler(currentDir)
+def find(array, filterFn):
+  return next((el for el in array if filterFn(el)), None)
 
-class OpenFileByPathCommand(sublime_plugin.TextCommand):
-  def run(self, edit):
-    view = self.view
-    beginPoint = getPosition(view)
-    currentDir = os.path.dirname(view.file_name())
-    if not view.match_selector(beginPoint, 'string.quoted'): return
+def some(array, filterFn):
+  for el in array:
+    if filterFn(el):
+      return True
+  return False
 
-    pathRegion = view.extract_scope(beginPoint)
-    relativePath = re.sub('("|\')', '', view.substr(pathRegion))
-    if not relativePath: return
+def every(array, filterFn):
+  for el in array:
+    if not filterFn(el):
+      return False
+  return True
 
-    path = os.path.join(currentDir, relativePath)
-    if os.path.isfile(path):
-      return view.window().open_file(path)
-    elif pluginSettings['isHideExtensions']:
-      existedExtension = find(pluginSettings['extensions'], lambda ext: os.path.isfile(f'{path}{ext}'))
-      if existedExtension:
-        return view.window().open_file(f'{path}{existedExtension}')
-    sublime.status_message(f'Can\'t open file {path}')
+def shouldIncludePath(path, excludePathPatterns):
+  shouldIncludePathFn = lambda pattern: not re.search(re.escape(pattern).replace('\\*', '.*'), path)
+  return every(excludePathPatterns, shouldIncludePathFn)
+
+def getParentPath(path, parentLvl):
+  if parentLvl == 0:
+    return path
+  root = path.split(os.sep)[0] if os.name == 'nt' else '/'
+  parentPath = os.sep.join(path.split(os.sep)[0:-parentLvl])
+  return parentPath if parentPath else root
+
+def getRelativePath(rootDir, path):
+  tmpPath = path.replace(rootDir, '');
+  relativePath = tmpPath.replace(os.sep, '', 1) if tmpPath.startswith(os.sep) else tmpPath
+  return relativePath.replace('\\', '/')

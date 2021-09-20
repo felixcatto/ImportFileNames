@@ -12,3 +12,7 @@ Mainly useful for javascript for importing modules, but it can be used to import
 ## Demo
 
 ![](https://github.com/felixcatto/ImportFileNames/blob/main/demo.gif?raw=true)
+
+## License
+
+MIT

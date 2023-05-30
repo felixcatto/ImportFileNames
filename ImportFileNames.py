@@ -3,21 +3,25 @@ import sublime_plugin
 import os
 import re
 
-
 pluginSettings = None
 parentDirSymbol = '..'
 
+
 def plugin_loaded():
   global pluginSettings
-  pluginSettings = sublime.load_settings('ImportFileNames.sublime-settings').to_dict()
+  pluginSettings = sublime.load_settings(
+    'ImportFileNames.sublime-settings').to_dict()
   settings = sublime.load_settings('Preferences.sublime-settings')
-  pluginSettings["folderExcludePatterns"] = pluginSettings["folderExcludePatterns"] + settings.get('folder_exclude_patterns')
+  pluginSettings["folderExcludePatterns"] = pluginSettings[
+    "folderExcludePatterns"] + settings.get('folder_exclude_patterns')
   pluginSettings["fileExcludePatterns"] = settings.get('file_exclude_patterns')
   tmpPattern = '|'.join(pluginSettings["extensions"]).replace('.', '\.')
   regexPattern = f'({tmpPattern})$'
   pluginSettings["extensionsRegex"] = re.compile(regexPattern)
 
+
 class ImportPathCommand(sublime_plugin.TextCommand):
+
   def run(self, edit, path):
     selection = self.view.sel()[0]
     self.view.insert(edit, selection.begin(), path)
@@ -26,8 +30,10 @@ class ImportPathCommand(sublime_plugin.TextCommand):
     currentDir = os.path.dirname(self.view.file_name())
     return PathInputHandler(currentDir)
 
+
 class OpenFileByPathCommand(sublime_plugin.TextCommand):
-  def run(self, edit):
+
+  def run(self, edit, shouldCloseOriginalFile=False):
     view = self.view
     selection = view.sel()[0]
     selectionPoint = selection.begin()
@@ -39,16 +45,31 @@ class OpenFileByPathCommand(sublime_plugin.TextCommand):
     if not relativePath: return
 
     path = os.path.join(currentDir, relativePath)
+    existedPath = None
     if os.path.isfile(path):
-      return view.window().open_file(path)
+      existedPath = path
     elif pluginSettings['isHideExtensions']:
-      existedExtension = find(pluginSettings['extensions'], lambda ext: os.path.isfile(f'{path}{ext}'))
+      existedExtension = find(pluginSettings['extensions'],
+                              lambda ext: os.path.isfile(f'{path}{ext}'))
       if existedExtension:
-        return view.window().open_file(f'{path}{existedExtension}')
+        existedPath = f'{path}{existedExtension}'
+    elif pluginSettings['shouldRewriteTsToJs']:
+      tsPath = re.sub(r'\.js(x?)$', r'.ts\1', path)
+      if os.path.isfile(tsPath):
+        existedPath = tsPath
+
+    if existedPath:
+      view.window().open_file(existedPath)
+      if shouldCloseOriginalFile:
+        view.close()
+      return
+
     sublime.status_message(f'Can\'t open file {path}')
 
+
 class PathInputHandler(sublime_plugin.ListInputHandler):
-  def __init__(self, currentDir, parentLvl = 0):
+
+  def __init__(self, currentDir, parentLvl=0):
     self.currentDir = currentDir
     self.parentLvl = parentLvl
 
@@ -60,7 +81,8 @@ class PathInputHandler(sublime_plugin.ListInputHandler):
 
     def makeInputItem(path):
       if path == parentDirSymbol:
-        return sublime.ListInputItem(parentDirSymbol, parentDirSymbol, '', 'Move To Upper Dir')
+        return sublime.ListInputItem(parentDirSymbol, parentDirSymbol, '',
+                                     'Move To Upper Dir')
       isDirectory = path.endswith('/')
       annotation = 'Directory' if isDirectory else ''
 
@@ -71,8 +93,11 @@ class PathInputHandler(sublime_plugin.ListInputHandler):
       suffix = relativePathTitle
       if pluginSettings['isHideExtensions']:
         suffix = pluginSettings["extensionsRegex"].sub('', relativePathTitle)
+      elif pluginSettings['shouldRewriteTsToJs']:
+        suffix = re.sub(r'\.ts(x?)$', r'.js\1', relativePathTitle)
       relativePathValue = f'{prefix}{suffix}'
-      return sublime.ListInputItem(relativePathTitle, relativePathValue, '', annotation)
+      return sublime.ListInputItem(relativePathTitle, relativePathValue, '',
+                                   annotation)
 
     for root, dirs, files in os.walk(rootDir):
       for dirName in dirs:
@@ -83,7 +108,9 @@ class PathInputHandler(sublime_plugin.ListInputHandler):
           dirs.remove(dirName)
       for fileName in files:
         fullFileName = os.path.join(root, fileName)
-        if shouldIncludePath(root, folderExcludePatterns) and shouldIncludePath(fullFileName, fileExcludePatterns):
+        if shouldIncludePath(root,
+                             folderExcludePatterns) and shouldIncludePath(
+                               fullFileName, fileExcludePatterns):
           paths.append(fullFileName)
     return map(makeInputItem, paths)
 
@@ -92,8 +119,10 @@ class PathInputHandler(sublime_plugin.ListInputHandler):
       return PathInputHandler(self.currentDir, self.parentLvl + 1)
     return None
 
+
 def find(array, filterFn):
   return next((el for el in array if filterFn(el)), None)
+
 
 def some(array, filterFn):
   for el in array:
@@ -101,15 +130,19 @@ def some(array, filterFn):
       return True
   return False
 
+
 def every(array, filterFn):
   for el in array:
     if not filterFn(el):
       return False
   return True
 
+
 def shouldIncludePath(path, excludePathPatterns):
-  shouldIncludePathFn = lambda pattern: not re.search(re.escape(pattern).replace('\\*', '.*'), path)
+  shouldIncludePathFn = lambda pattern: not re.search(
+    re.escape(pattern).replace('\\*', '.*'), path)
   return every(excludePathPatterns, shouldIncludePathFn)
+
 
 def getParentPath(path, parentLvl):
   if parentLvl == 0:
@@ -118,7 +151,9 @@ def getParentPath(path, parentLvl):
   parentPath = os.sep.join(path.split(os.sep)[0:-parentLvl])
   return parentPath if parentPath else root
 
+
 def getRelativePath(rootDir, path):
-  tmpPath = path.replace(rootDir, '');
-  relativePath = tmpPath.replace(os.sep, '', 1) if tmpPath.startswith(os.sep) else tmpPath
+  tmpPath = path.replace(rootDir, '')
+  relativePath = tmpPath.replace(os.sep, '', 1) if tmpPath.startswith(
+    os.sep) else tmpPath
   return relativePath.replace('\\', '/')

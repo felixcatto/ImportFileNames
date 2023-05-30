@@ -1,9 +1,13 @@
 {
   // If enabled, the resulting path extension will be hidden.
   // I.e. 'client/script' instead of 'client/script.js'
-  "isHideExtensions": true,
+  "isHideExtensions": false,
   // Extensions to hide
   "extensions": [".js", ".jsx", ".ts", ".tsx"],
+  // If enabled
+  // while importing it rewrite 'script.ts' to 'script.js'
+  // while opening 'script.js' it will try to open 'script.ts', if original not existed
+  "shouldRewriteTsToJs": true,
   // If enabled, the resulting path, if it from the same directory will have './' prefix
   // I.e. './script.js' instead of 'script.js'
   // useful in nodeJs, and useless in other purposes, because for OS they are same

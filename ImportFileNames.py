@@ -27,7 +27,7 @@ class ImportPathCommand(sublime_plugin.TextCommand):
     return PathInputHandler(currentDir)
 
 class OpenFileByPathCommand(sublime_plugin.TextCommand):
-  def run(self, edit):
+  def run(self, edit, shouldCloseOriginalFile = False):
     view = self.view
     selection = view.sel()[0]
     selectionPoint = selection.begin()
@@ -39,12 +39,24 @@ class OpenFileByPathCommand(sublime_plugin.TextCommand):
     if not relativePath: return
 
     path = os.path.join(currentDir, relativePath)
+    existedPath = None
     if os.path.isfile(path):
-      return view.window().open_file(path)
+      existedPath = path
     elif pluginSettings['isHideExtensions']:
       existedExtension = find(pluginSettings['extensions'], lambda ext: os.path.isfile(f'{path}{ext}'))
       if existedExtension:
-        return view.window().open_file(f'{path}{existedExtension}')
+        existedPath = f'{path}{existedExtension}'
+    elif pluginSettings['shouldRewriteTsToJs']:
+      tsPath = re.sub(r'\.js(x?)$', r'.ts\1', path)
+      if os.path.isfile(tsPath):
+        existedPath = tsPath
+
+    if existedPath:
+      view.window().open_file(existedPath)
+      if shouldCloseOriginalFile:
+        view.close()
+      return
+
     sublime.status_message(f'Can\'t open file {path}')
 
 class PathInputHandler(sublime_plugin.ListInputHandler):
@@ -71,6 +83,8 @@ class PathInputHandler(sublime_plugin.ListInputHandler):
       suffix = relativePathTitle
       if pluginSettings['isHideExtensions']:
         suffix = pluginSettings["extensionsRegex"].sub('', relativePathTitle)
+      elif pluginSettings['shouldRewriteTsToJs']:
+        suffix = re.sub(r'\.ts(x?)$', r'.js\1', relativePathTitle)
       relativePathValue = f'{prefix}{suffix}'
       return sublime.ListInputItem(relativePathTitle, relativePathValue, '', annotation)
 
